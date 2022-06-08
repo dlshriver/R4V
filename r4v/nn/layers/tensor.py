@@ -13,6 +13,7 @@ from .base import Layer
 from .utils import single
 from ..pytorch import (
     Flatten as PytorchFlatten,
+    InputScaler as PytorchInputScaler,
     Reshape as PytorchReshape,
     Transpose as PytorchTranspose,
 )
@@ -64,6 +65,9 @@ class Input(Layer):
         output_shape = op_graph.output_shape
         assert len(output_shape) == 1
         return cls(input_shape[0], output_shape[0])
+
+    def as_pytorch(self, maintain_weights: bool = False) -> nn.Module:
+        return PytorchInputScaler(self.input_shape, self.output_shape)
 
 
 class Reshape(Layer):

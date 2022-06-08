@@ -43,7 +43,7 @@ class MaxPool(Droppable):
 
         op: MaxPoolOp = single(op_graph.output_operations)
         assert not op.ceil_mode
-        assert op.dilations == 1
+        assert all(d == 1 for d in op.dilations)
         assert op.storage_order == MaxPoolOp.ROW_MAJOR_STORAGE
         kernel_shape = tuple(op.kernel_shape)
         pads = tuple(op.pads)

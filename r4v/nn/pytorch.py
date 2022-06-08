@@ -89,3 +89,19 @@ class Sequential(nn.Module):
         for operation in self.path:
             y = operation(y)
         return y
+
+
+class InputScaler(nn.Module):
+    def __init__(self, input_shape, scaled_shape):
+        super().__init__()
+        self.input_shape = input_shape
+        self.scaled_shape = scaled_shape
+        input_size = np.product(input_shape)
+        scaled_size = np.product(scaled_shape)
+        self.fc = nn.Linear(input_size, scaled_size)
+
+    def forward(self, x):
+        x = x.flatten(1)
+        x = self.fc(x)
+        x = x.reshape(-1, *self.scaled_shape[1:])
+        return x

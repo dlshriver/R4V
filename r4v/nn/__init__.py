@@ -5,7 +5,7 @@ import torch.nn as nn
 from copy import deepcopy
 from dnnv.nn import parse
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Sequence, Type, Union
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 from typing_extensions import TypedDict
 
 from .layers import Layer
@@ -23,7 +23,8 @@ LayerExclusions = TypedDict(
 
 def load_network(config: Configuration):
     logger = logging.getLogger(__name__)
-    op_graph = parse(Path(config["model"])).simplify()
+    op_graph = parse(Path(config["model"])).simplify()[:-1, 0]
+    op_graph.pprint()
     if config.get("input_format", "NCHW") == "NHWC":
         op_graph = op_graph[2:]  # TODO : Double check this. Make more robust
     layer_types: List[Type[Layer]] = list(get_subclasses(Layer))
@@ -74,10 +75,14 @@ class DNN:
         if maintain_weights is None:
             maintain_weights = not any(layer.modified for layer in self.layers)
         layers = []
+        if self.input_layer.modified:
+            layers.append(
+                self.input_layer.as_pytorch(maintain_weights=maintain_weights)
+            )
         for layer in self.layers:
             if not layer.dropped:
                 layers.append(layer.as_pytorch(maintain_weights=maintain_weights))
-        return Net(layers, self.input_layer.output_shape)
+        return Net(layers, self.input_layer.input_shape)
 
     def update_layer_shapes(self):
         input_shape = self.input_layer.output_shape
@@ -193,6 +198,38 @@ class DNN:
         layer.scale(factor)
         self.update_layer_shapes()
         return self
+
+    def scale_input(
+        self,
+        factor: Optional[Union[float, Tuple[float, ...]]] = None,
+        shape: Optional[Tuple[int, ...]] = None,
+    ):
+        logger = logging.getLogger(__name__)
+        input_shape = self.input_layer.input_shape
+        if shape is not None and factor is not None:
+            raise ValueError(
+                "Cannot pass both scaling factor and shape to 'scale_input'"
+            )
+        elif shape is None and factor is not None:
+            if isinstance(factor, float):
+                factors = tuple([factor for _ in range(len(input_shape))])
+            elif len(factor) == 1:
+                factors = tuple([factor[0] for _ in range(len(input_shape))])
+            elif len(factor) != len(input_shape):
+                raise ValueError(
+                    "The number of scaling factors must be equal to the input shape dimensionality."
+                )
+            else:
+                factors = factor
+            shape = tuple(round(f * s) for f, s in zip(factors, input_shape))
+        elif factor is None and shape is None:
+            shape = input_shape
+        assert shape is not None
+        logger.debug("Scaling input (shape %s)", shape)
+        self.input_layer.modified = True
+        # self.input_layer.input_shape = shape
+        self.input_layer.output_shape = shape
+        self.update_layer_shapes()
 
 
 class Net(nn.Module):
