@@ -1,5 +1,8 @@
 # R4V: Refactoring for Verification
 
+This is the code used for the evaluation of the paper [*Refactoring Neural Networks for Verification*](https://arxiv.org/abs/1908.08026).
+
+
 ## Installation
 
 The following command should install the necessary python environment. Requires python3.6+ and [venv](https://docs.python.org/3/library/venv.html) to be installed on the system.
